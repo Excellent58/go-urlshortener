@@ -1,0 +1,11 @@
+# Dependencies
+node_modules/
+
+# Temporary files
+tmp/
+
+# Environment variables
+.env
+
+# Air config (for live reloading in Go)
+.air.toml

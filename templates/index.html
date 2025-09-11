@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URL Shortener</title>
+    <link rel="stylesheet", href="/static/dist/output.css">
+</head>
+<body class="bg-[#1F1F38]">
+    <div class="text-white flex items-center flex-col mt-20 ">
+        <div>
+            <h1 class="text-bold text-4xl">URL SHORTENER</h1>
+        </div>
+
+        {{ if .Error }}
+            <p style="color: red;">{{ .Error }}</p>
+        {{ end }}
+
+        <form method="post" class="flex items-center md:flex-row mt-10 space-x-5 w-[80%]">
+            <input 
+                type="text" 
+                name="long_url"
+                placeholder="Enter your long url"
+                class="py-2 px-2 bg-gray-300 rounded-lg text-black w-full outline-none border-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+
+            <input 
+                type="submit" 
+                value="shorten"
+                class="py-2 bg-slate-400 px-3 rounded-lg text-bold text-lg "
+            >
+        </form>
+
+        <div class="mt-10 flex flex-col items-center">
+            {{ if .shortUrl }} 
+            <p class="text-bold">SHORT URL</p>
+                <div class="flex items-center rounded-lg space-x-2 bg-gray-500 py-3 px-2 ">
+                    <p class="">
+                        <a 
+                            href="{{ .shortUrl }}" 
+                            id="short-url"
+                            class="cursor-pointer" 
+                            target="_blank"
+                        >
+                            {{ .shortUrl }}
+                        </a>
+                    </p>
+                    <button 
+                        id="copy-btn"
+                        class="text-gray-100 cursor-pointer bg-gray-400 rounded-lg py-2 px-3 inline-flex items-center justify-center"
+                    >
+                        copy
+                    </button>
+                </div>
+            {{ end }}
+            
+            <div id="toast" class="fixed bottom-5 right-5 transform translate-y-10 opacity-0 transition-all duration-500 ease-out">
+                <div class="bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg">
+                    ✅ Short URL copied!
+                </div>
+            </div>   
+        </div>
+    </div> 
+
+    <script src="/static/js/main.js"></script>
+</body>
+</html>
