@@ -46,7 +46,15 @@ func CreateShortUrl(c *gin.Context) {
 		return
 	}
 
-	shortUrl := fmt.Sprintf("http://localhost:8081/%s", shortCode)
+	scheme := "http"
+	if c.Request.TLS != nil {
+		scheme = "https"
+	}
+
+	host := c.Request.Host
+
+	// shortUrl := fmt.Sprintf("http://localhost:8081/%s", shortCode)
+	shortUrl := fmt.Sprintf("%s://%s/%s", scheme, host, shortCode)
 
 	c.HTML(http.StatusOK, "index.html", gin.H{
 		"Message": "short url",
