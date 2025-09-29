@@ -138,3 +138,36 @@ func (db *Database) ShortUrlExists(ctx context.Context, shortUrl string) (bool, 
 	}
 	return exists, nil
 }
+
+func (db *Database) Close() {
+	if db.pool != nil {
+		db.pool.Close()
+	}
+}
+
+
+// Backward compatibility functions (delegate to global Pool)
+// func CreateShortenerTable(ctx context.Context, pool *pgxpool.Pool) error {
+// 	db := NewDatabase(pool)
+// 	return db.CreateShortenerTable(ctx)
+// }
+
+// func InsertShortenerRow(ctx context.Context, pool *pgxpool.Pool, longUrl, shortUrl string) error {
+// 	db := NewDatabase(pool)
+// 	return db.InsertShortenerRow(ctx, longUrl, shortUrl)
+// }
+
+// func FetchUrlDetails(ctx context.Context, pool *pgxpool.Pool, shortUrl string) (*Url, error) {
+// 	db := NewDatabase(pool)
+// 	return db.FetchUrlDetails(ctx, shortUrl)
+// }
+
+// func UpdateTimesFollowed(ctx context.Context, pool *pgxpool.Pool, shortUrl string) error {
+// 	db := NewDatabase(pool)
+// 	return db.UpdateTimesFollowed(ctx, shortUrl)
+// }
+
+// func ShortUrlExists(ctx context.Context, shortUrl string, pool *pgxpool.Pool) (bool, error) {
+// 	db := NewDatabase(pool)
+// 	return db.ShortUrlExists(ctx, shortUrl)
+// }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/Excellent58/urlShortener/database"
 	"github.com/Excellent58/urlShortener/handlers"
+  "github.com/Excellent58/urlShortener/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
@@ -17,24 +18,36 @@ func main() {
     log.Fatal("Error loading [.env file]: ", err)
   }
 
+  // Initialize database
   ctx := context.Background()
-  database.InitDB(ctx)
-  defer database.Pool.Close()
+  db, err := database.InitDB(ctx)
+  if err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
+  defer db.Close()
 
-  pool := database.Pool
   // create table
-  if err := database.CreateShortenerTable(ctx, pool); err != nil {
-    fmt.Println("Tables failed to be created")
-    log.Println(err)
+  if err := db.CreateShortenerTable(ctx); err != nil {
+    log.Fatalf("Failed to create table: %v", err)
   }
+
+  // Create utils generator with database dependency
+	urlGenerator := utils.NewGenerator(db)
+
+  // 5. Create handler dependencies
+	deps := &handlers.Dependencies{
+		DB:        db,
+		Generator: urlGenerator, // Inject generator into handlers
+	}
 
   router := gin.Default()
   router.LoadHTMLGlob("templates/*")
   router.Static("/static", "./static")
 
-  router.GET("/", handlers.Home)
-  router.POST("/", handlers.CreateShortUrl)
-  router.GET("/:short_url", handlers.RedirectUrl)
+  handlerService := handlers.NewHandlerService(deps)
+	router.GET("/", handlerService.Home)
+	router.POST("/", handlerService.CreateShortUrl)
+	router.GET("/:short_url", handlerService.RedirectUrl)
   
   router.Run() 
 }
