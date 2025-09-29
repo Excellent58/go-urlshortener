@@ -18,9 +18,33 @@ type Url struct {
 	CreatedAt time.Time
 }
 
+//DatabaseInterface defines the contract for database operations
+type DatabaseInterface interface {
+	CreateShortenerTable(ctx context.Context) error
+	InsertShortenerRow(ctx context.Context, longUrl, shortUrl string) error
+	FetchUrlDetails(ctx context.Context, shortUrl string) (*Url, error)
+	UpdateTimesFollowed(ctx context.Context, shortUrl string) error
+	ShortUrlExists(ctx context.Context, shortUrl string) (bool, error)
+	Close()
+}
+
+//Database implements DatabaseInterface
+type Database struct {
+	pool *pgxpool.Pool
+}
+
+// Global variable for backward compatibility
 var Pool *pgxpool.Pool
 
-func InitDB(ctx context.Context) {
+// NewDatabase creates a new Database instance
+func NewDatabase(pool *pgxpool.Pool) *Database {
+	return &Database{
+		pool: pool,
+	}
+}
+
+// InitDB initializes the database connection and returns a Database instance
+func InitDB(ctx context.Context) (*Database, error) {
 	dsn := os.Getenv("DATABASE_URL")
 	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
@@ -33,10 +57,12 @@ func InitDB(ctx context.Context) {
 	
 	Pool = pool
 	log.Println("[DATABASE] CONNECTED!!")
+	return  NewDatabase(pool), nil
 }
 
-func CreateShortenerTable(ctx context.Context, poll *pgxpool.Pool) error {
-	_, err := poll.Exec(ctx, `
+// Dtabase method implementations
+func (db *Database) CreateShortenerTable(ctx context.Context) error {
+	_, err := db.pool.Exec(ctx, `
 		CREATE TABLE IF NOT EXISTS shortener (
 			id SERIAL PRIMARY KEY,
 			created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
@@ -49,25 +75,24 @@ func CreateShortenerTable(ctx context.Context, poll *pgxpool.Pool) error {
 	return err
 }
 
-func InsertShortenerRow(ctx context.Context, pool *pgxpool.Pool, longUrl, shortUrl string) error {
-	if pool == nil {
+func (db *Database) InsertShortenerRow(ctx context.Context, longUrl, shortUrl string) error {
+	if db.pool == nil {
 		return fmt.Errorf("database pool is nil")
 	}
-	_, err := pool.Exec(ctx, `
+	_, err := db.pool.Exec(ctx, `
 		INSERT INTO shortener (long_url, short_url) VALUES($1, $2)
 	`, longUrl, shortUrl)
 
 	if err != nil {
-		fmt.Println("error: ", err)
 		return fmt.Errorf("failed to insert row into shortener: %w", err)
 	}
 
 	return nil
 }
 
-func FetchUrlDetails(ctx context.Context, pool *pgxpool.Pool, ShortUrl string) (*Url, error) {
+func (db *Database) FetchUrlDetails(ctx context.Context, ShortUrl string) (*Url, error) {
 	var u Url
-	err := pool.QueryRow(ctx, `
+	err := db.pool.QueryRow(ctx, `
 		SELECT id, short_url, long_url, times_followed, created_at
 		FROM shortener
 		WHERE short_url = $1
@@ -86,8 +111,8 @@ func FetchUrlDetails(ctx context.Context, pool *pgxpool.Pool, ShortUrl string) (
 	return &u, nil
 }
 
-func UpdateTimesFollowed(ctx context.Context, pool *pgxpool.Pool, short_url string) error {
-	_, err := pool.Exec(ctx, `
+func (db *Database) UpdateTimesFollowed(ctx context.Context, short_url string) error {
+	_, err := db.pool.Exec(ctx, `
 		UPDATE shortener
 		SET times_followed = times_followed + 1
 		WHERE short_url = $1
@@ -96,21 +121,19 @@ func UpdateTimesFollowed(ctx context.Context, pool *pgxpool.Pool, short_url stri
 	return err
 }
 
-func ShortUrlExists(ctx context.Context, shortUrl string, pool *pgxpool.Pool) (bool, error) {
-	if pool == nil {
-		fmt.Println("Pool empty")
+func (db *Database) ShortUrlExists(ctx context.Context, shortUrl string) (bool, error) {
+	if db.pool == nil {
 		return false, fmt.Errorf("database pool is nil")
 	}
 
 	var exists bool
-	err := pool.QueryRow(ctx, `
+	err := db.pool.QueryRow(ctx, `
 		SELECT EXISTS (
 			SELECT 1 FROM shortener WHERE short_url = $1
 		)
 	`, shortUrl).Scan(&exists)
 
 	if err != nil {
-		fmt.Println("query failed: ", err)
 		return false, fmt.Errorf("query failed: %w", err)
 	}
 	return exists, nil
