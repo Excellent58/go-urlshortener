@@ -14,12 +14,28 @@ type UrlForm struct {
 	LongUrl string `form:"long_url"`
 }
 
-
-func Home(c *gin.Context) {
-	c.HTML(http.StatusOK, "index.html", nil)	
+// Dependencies holds all injected dependencies
+type Dependencies struct {
+	DB        database.DatabaseInterface
+	Generator utils.UrlGenerator // Utils generator with database already injected
 }
 
-func CreateShortUrl(c *gin.Context) {
+// HandlerService provides handler methods
+type HandlerService struct {
+	deps *Dependencies
+}
+
+// NewHandlerService creates a new handler service
+func NewHandlerService(deps *Dependencies) *HandlerService {
+	return &HandlerService{deps: deps}
+}
+
+func (hs *HandlerService) Home(c *gin.Context) {
+	c.HTML(http.StatusOK, "index.html", nil)
+}
+
+
+func (hs *HandlerService) CreateShortUrl(c *gin.Context) {
 	var form UrlForm
 	if err := c.ShouldBind(&form); err != nil {
 		c.HTML(http.StatusBadRequest, "index.html", gin.H{
@@ -35,9 +51,18 @@ func CreateShortUrl(c *gin.Context) {
 		return
 	}
 
-	shortCode := utils.CreateShortUrl()
 	ctx := context.Background()
-	err := database.InsertShortenerRow(ctx, database.Pool, form.LongUrl, shortCode)
+	shortCode, err := hs.deps.Generator.CreateShortUrl(ctx)
+	if err != nil {
+		log.Printf("Failed to create short code: %v", err)
+		c.HTML(http.StatusInternalServerError, "index.html", gin.H{
+			"Error": "Could not generate short URL. Please try again.",
+		})
+		return
+	}
+
+	err = hs.deps.DB.InsertShortenerRow(ctx, form.LongUrl, shortCode)
+
 	if err != nil {
 		log.Printf("DB insert failed: %v", err)
 		c.HTML(http.StatusInternalServerError, "index.html", gin.H{
@@ -62,19 +87,18 @@ func CreateShortUrl(c *gin.Context) {
 	})
 }
 
-func RedirectUrl(c *gin.Context) {
+func (hs *HandlerService) RedirectUrl(c *gin.Context) {
 	shortUrl := c.Param("short_url")
 	ctx := context.Background()
-	pool := database.Pool
 	
-	urlDetails, err := database.FetchUrlDetails(ctx, pool, shortUrl)
+	urlDetails, err := hs.deps.DB.FetchUrlDetails(ctx, shortUrl)
 	if err != nil {
-		fmt.Println("Error: ", err)
+		log.Printf("URL not found: %s, error: %v", shortUrl, err)
 		c.String(http.StatusNotFound, "URl not found")
 		return
 	}
 
-	if err := database.UpdateTimesFollowed(ctx, pool, shortUrl); err != nil {
+	if err := hs.deps.DB.UpdateTimesFollowed(ctx, shortUrl); err != nil {
 		log.Printf("UpdateTimesFollowed failed for %s: %v", shortUrl, err)
 	}
 
