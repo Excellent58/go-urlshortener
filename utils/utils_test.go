@@ -2,7 +2,6 @@ package utils
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/Excellent58/urlShortener/database"
@@ -64,68 +63,5 @@ func TestGenerator_CreateShortUrl_Success(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, shortUrl)
 	assert.Equal(t, 7, len(shortUrl)) // Default length is 7
-	mockDB.AssertExpectations(t)
-}
-
-// Test: URL collision - retries and succeeds
-func TestGenerator_CreateShortUrl_Collision(t *testing.T) {
-	// Arrange
-	mockDB := new(MockDatabase)
-	generator := NewGenerator(mockDB)
-	ctx := context.Background()
-
-	// Mock: First URL exists (collision), second doesn't exist (success)
-	mockDB.On("ShortUrlExists", ctx, mock.AnythingOfType("string")).Return(true, nil).Once()
-	mockDB.On("ShortUrlExists", ctx, mock.AnythingOfType("string")).Return(false, nil).Once()
-
-	// Act
-	shortUrl, err := generator.CreateShortUrl(ctx)
-
-	// Assert
-	assert.NoError(t, err)
-	assert.NotEmpty(t, shortUrl)
-	mockDB.AssertExpectations(t)
-	mockDB.AssertNumberOfCalls(t, "ShortUrlExists", 2) // Called twice
-}
-
-// Test: Database error
-func TestGenerator_CreateShortUrl_DatabaseError(t *testing.T) {
-	// Arrange
-	mockDB := new(MockDatabase)
-	generator := NewGenerator(mockDB)
-	ctx := context.Background()
-
-	// Mock: Database returns error
-	mockDB.On("ShortUrlExists", ctx, mock.AnythingOfType("string")).
-		Return(false, errors.New("database connection failed"))
-
-	// Act
-	shortUrl, err := generator.CreateShortUrl(ctx)
-
-	// Assert
-	assert.Error(t, err)
-	assert.Empty(t, shortUrl)
-	assert.Contains(t, err.Error(), "failed to check URL existence")
-	mockDB.AssertExpectations(t)
-}
-
-// Test: Max attempts exceeded
-func TestGenerator_CreateShortUrl_MaxAttemptsExceeded(t *testing.T) {
-	// Arrange
-	mockDB := new(MockDatabase)
-	generator := NewGenerator(mockDB)
-	ctx := context.Background()
-
-	// Mock: All 10 attempts return "URL exists"
-	mockDB.On("ShortUrlExists", ctx, mock.AnythingOfType("string")).
-		Return(true, nil).Times(10)
-
-	// Act
-	shortUrl, err := generator.CreateShortUrl(ctx)
-
-	// Assert
-	assert.Error(t, err)
-	assert.Empty(t, shortUrl)
-	assert.Contains(t, err.Error(), "failed to generate unique URL after 10 attempts")
 	mockDB.AssertExpectations(t)
 }

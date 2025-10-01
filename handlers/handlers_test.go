@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"html/template"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
