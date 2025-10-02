@@ -1,0 +1,12 @@
+.my-padding {
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+@media (min-width: 48rem) {
+    .my-padding {
+        padding-left: 20%;
+        padding-right: 20%;
+    }
+}
+
